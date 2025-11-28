@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Insurance RFQ System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    
+    <style>
+        :root {
+            --primary-color: #0d47a1;
+            --secondary-color: #1976d2;
+            --bg-color: #f4f6f9;
+        }
+        body { background-color: var(--bg-color); font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        
+        /* Header Styling */
+        .form-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 3rem 1rem;
+            border-radius: 0 0 20px 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        /* Card Styling */
+        .section-card {
+            background: white;
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .section-header {
+            background-color: #fff;
+            border-bottom: 2px solid #f0f0f0;
+            padding: 1.5rem;
+        }
+        .section-title { font-weight: 700; color: #333; margin: 0; }
+        .section-desc { color: #666; font-size: 0.9rem; margin-top: 5px; }
+        .section-body { padding: 1.5rem; }
+
+        /* Form Elements */
+        .form-label { font-weight: 600; color: #444; font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .required-star { color: #dc3545; margin-left: 2px; }
+        .form-text { font-size: 0.8rem; color: #888; margin-top: 0.25rem; }
+        
+        /* Visibility Logic */
+        .hidden-element { display: none !important; }
+        
+        /* Loading Overlay */
+        #loadingOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.9); z-index: 9999;
+            display: none; justify-content: center; align-items: center; flex-direction: column;
+        }
+
+        /* Checkbox Group Styling */
+        .checkbox-group {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+
+<div class="form-header text-center">
+    <h1 class="display-6 fw-bold">Universal Insurance Request</h1>
+    <p class="opacity-75 mb-0">Corporate & Commercial Risk Underwriting Portal</p>
+</div>
+
+<div class="container pb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            
+            <form id="rfqForm" novalidate>
+                <div id="dynamicFormContainer"></div>
+
+                <div class="d-grid gap-2 mt-4 mb-5">
+                    <button type="submit" class="btn btn-primary btn-lg py-3 fw-bold shadow-sm">
+                        <i class="bi bi-send-fill me-2"></i> Submit Proposal Request
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<div id="loadingOverlay">
+    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+    <h4 class="mt-3 text-dark">Validating & Packaging Data...</h4>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    /** * YOUR JSON CONFIGURATION 
+     * Pasted exactly as provided
+     */
+    const insuranceConfig = {
+        "sections": [
+            {
+                "id": "entity",
+                "title": "1. Proposer & KYC Details",
+                "description": "Details strictly as per GST/PAN registration.",
+                "fields": [
+                    { "key": "proposer_name", "label": "Proposer Name", "type": "text", "required": true, "placeholder": "M/S Example Private Limited" },
+                    { "key": "industry_sector", "label": "Industry / Sector", "type": "select", "required": true, "options": [
+                        { "label": "IT / ITeS / BPO", "value": "it" },
+                        { "label": "Manufacturing - Engineering", "value": "mfg_eng" },
+                        { "label": "Manufacturing - Chemical/Pharma", "value": "mfg_chem" },
+                        { "label": "Manufacturing - Food Processing", "value": "mfg_food" },
+                        { "label": "Textiles / Garments", "value": "textile" },
+                        { "label": "Logistics / Warehousing", "value": "logistics" },
+                        { "label": "Construction / EPC", "value": "construction" },
+                        { "label": "Retail / Trading", "value": "retail" },
+                        { "label": "Hospitality / Hotels", "value": "hospitality" },
+                        { "label": "Educational Institutions", "value": "education" },
+                        { "label": "Healthcare / Hospitals", "value": "healthcare" },
+                        { "label": "Power / Energy", "value": "power" },
+                        { "label": "Real Estate", "value": "real_estate" },
+                        { "label": "Others", "value": "others" }
+                    ]},
+                    { "key": "industry_others", "label": "Specify Industry", "type": "text", "visibleIf": { "field": "industry_sector", "value": "others" } },
+                    { "key": "pan_number", "label": "PAN Number", "type": "text", "required": true, "uppercase": true, "validation": { "regex": "^[A-Z]{5}[0-9]{4}[A-Z]{1}$", "message": "Invalid PAN Format" } },
+                    { "key": "gstin", "label": "GSTIN", "type": "text", "required": true, "uppercase": true, "validation": { "regex": "^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$", "message": "Invalid GSTIN Format" } },
+                    { "key": "year_of_establishment", "label": "Year of Establishment", "type": "number", "min": 1900, "max": 2030 },
+                    { "key": "contact_person", "label": "Contact Person Name", "type": "text", "required": true },
+                    { "key": "contact_designation", "label": "Designation", "type": "text", "required": true },
+                    { "key": "contact_email", "label": "Email Address", "type": "email", "required": true },
+                    { "key": "contact_mobile", "label": "Mobile Number", "type": "tel", "prefix": "+91", "required": true, "validation": { "regex": "^[6-9]\\d{9}$", "message": "Invalid Mobile" } },
+                    { "key": "policy_period", "label": "Policy Start Date", "type": "date", "required": true },
+                    { "key": "policy_duration", "label": "Policy Duration", "type": "select", "required": true, "options": [
+                        { "label": "1 Year", "value": "1" },
+                        { "label": "2 Years", "value": "2" },
+                        { "label": "3 Years", "value": "3" }
+                    ]}
+                ]
+            },
+            {
+                "id": "product_select",
+                "title": "2. Insurance Portfolio",
+                "fields": [
+                    { "key": "product_type", "label": "Select Policy Type", "type": "select", "required": true, "options": [
+                        { "label": "-- Select Requirement --", "value": "" },
+                        { "label": "Fire & Special Perils (SFSP / IAR)", "value": "fire" },
+                        { "label": "Marine Cargo (Transit)", "value": "marine" },
+                        { "label": "Commercial General Liability (CGL)", "value": "cgl" },
+                        { "label": "Group Health (GMC) - Employees", "value": "gmc" },
+                        { "label": "Workmen Compensation / GPA", "value": "wc" },
+                        { "label": "Professional Indemnity", "value": "pi" },
+                        { "label": "Directors & Officers (D&O)", "value": "do" },
+                        { "label": "Cyber Liability", "value": "cyber" },
+                        { "label": "Business Interruption", "value": "bi" }
+                    ]}
+                ]
+            },
+            // --- FIRE SECTION ---
+            {
+                "id": "fire_details",
+                "title": "3. Property & Asset Details",
+                "visibleIf": { "field": "product_type", "value": "fire" },
+                "fields": [
+                    { "key": "risk_locations_count", "label": "Number of Locations", "type": "select", "required": true, "options": [
+                        { "label": "Single Location", "value": "1" }, 
+                        { "label": "Multiple (2-5 Locations)", "value": "2-5" },
+                        { "label": "Multiple (6-10 Locations)", "value": "6-10" },
+                        { "label": "Multiple (10+ Locations)", "value": "10+" }
+                    ]},
+                    { "key": "risk_address", "label": "Primary Risk Address", "type": "textarea", "required": true },
+                    { "key": "pincode", "label": "Pincode", "type": "number", "required": true, "helperText": "Crucial for STFI & Earthquake Zones" },
+                    
+                    // Sum Insured Details
+                    { "key": "si_building", "label": "Building Value (Reinstatement)", "type": "number", "prefix": "₹", "required": true },
+                    { "key": "si_pm", "label": "Plant & Machinery", "type": "number", "prefix": "₹", "required": true },
+                    { "key": "si_stocks", "label": "Stocks (Market Value)", "type": "number", "prefix": "₹", "required": true },
+                    { "key": "si_other_assets", "label": "Other Assets (Furniture, Equipment)", "type": "number", "prefix": "₹" },
+                    
+                    // Technical Risk Details
+                    { "key": "construction_type", "label": "Construction Class", "type": "select", "required": true, "options": [
+                        { "label": "Class A (RCC/Brick - Superior)", "value": "class_a" },
+                        { "label": "Class B (Mixed/Asbestos Roof)", "value": "class_b" },
+                        { "label": "Class C (Kutcha/Timber/Thatch)", "value": "class_c" }
+                    ]},
+                    { "key": "building_age", "label": "Building Age (Years)", "type": "number", "min": 0, "max": 100 },
+                    { "key": "building_area", "label": "Built-up Area (Sq. Ft.)", "type": "number", "suffix": "sq. ft." },
+                    { "key": "occupancy_type", "label": "Occupancy Type", "type": "select", "required": true, "options": [
+                        { "label": "Owner Occupied", "value": "owner" },
+                        { "label": "Tenant", "value": "tenant" },
+                        { "label": "Mixed Use", "value": "mixed" }
+                    ]},
+                    { "key": "fire_protection", "label": "Fire Protection Systems", "type": "select", "required": true, "options": [
+                        { "label": "None / Hand Extinguishers Only", "value": "none" },
+                        { "label": "Hydrant System", "value": "hydrant" },
+                        { "label": "Hydrant + Sprinklers + Detection", "value": "full_system" }
+                    ]},
+                    { "key": "fire_system_maintenance", "label": "Fire System Maintenance", "type": "select", "visibleIf": { "field": "fire_protection", "value": ["hydrant", "full_system"] }, "options": [
+                        { "label": "Annual AMC", "value": "amc" },
+                        { "label": "In-house Maintenance", "value": "inhouse" },
+                        { "label": "Irregular Maintenance", "value": "irregular" }
+                    ]},
+                    { "key": "electrical_installation", "label": "Electrical Installation Type", "type": "select", "options": [
+                        { "label": "ISI Marked with Proper Earthing", "value": "standard" },
+                        { "label": "Old Wiring (Over 15 Years)", "value": "old" },
+                        { "label": "Fully Modern with MCBs/ELCBs", "value": "modern" }
+                    ]},
+                    { "key": "nearest_fire_station", "label": "Distance to Nearest Fire Station", "type": "number", "suffix": "km" },
+                    
+                    // Addons
+                    { "key": "addon_stfi", "label": "Add: STFI (Storm/Flood)", "type": "select", "options": [{ "label": "Yes", "value": "yes" }, { "label": "No", "value": "no" }] },
+                    { "key": "addon_eq", "label": "Add: Earthquake", "type": "select", "options": [{ "label": "Yes", "value": "yes" }, { "label": "No", "value": "no" }] },
+                    { "key": "addon_terrorism", "label": "Add: Terrorism Cover", "type": "select", "options": [{ "label": "Yes", "value": "yes" }, { "label": "No", "value": "no" }] },
+                    { "key": "addon_flop", "label": "Add: Loss of Profit (FLOP)", "type": "select", "helperText": "Covers Gross Profit loss during repair period", "options": [{ "label": "No", "value": "no" }, { "label": "Yes (Need Financials)", "value": "yes" }] },
+                    { "key": "addon_breakdown", "label": "Add: Machinery Breakdown", "type": "select", "options": [{ "label": "Yes", "value": "yes" }, { "label": "No", "value": "no" }] },
+                    { "key": "addon_burglary", "label": "Add: Burglary/Theft", "type": "select", "options": [{ "label": "Yes", "value": "yes" }, { "label": "No", "value": "no" }] },
+                    
+                    // Risk Improvement
+                    { "key": "risk_improvement", "label": "Risk Improvement Measures", "type": "checkbox", "options": [
+                        { "label": "24x7 Security Guard", "value": "security" },
+                        { "label": "CCTV Surveillance", "value": "cctv" },
+                        { "label": "Boundary Wall/Fencing", "value": "boundary" },
+                        { "label": "Water Reservoir/Tank", "value": "water" },
+                        { "label": "Emergency Exit Plans", "value": "exit" }
+                    ]},
+                    { "key": "risk_improvement_others", "label": "Other Risk Improvement Measures", "type": "textarea" }
+                ]
+            },
+
+            // --- MARINE SECTION ---
+            {
+                "id": "marine_details",
+                "title": "3. Marine Transit Details",
+                "visibleIf": { "field": "product_type", "value": "marine" },
+                "fields": [
+                    { "key": "transit_type", "label": "Movement Type", "type": "select", "required": true, "options": [
+                        { "label": "Inland (Within India)", "value": "inland" },
+                        { "label": "Import", "value": "import" },
+                        { "label": "Export", "value": "export" }
+                    ]},
+                    { "key": "commodity_type", "label": "Commodity Description", "type": "select", "required": true, "options": [
+                        { "label": "New Machinery", "value": "machinery_new" },
+                        { "label": "Second Hand Machinery", "value": "machinery_old" },
+                        { "label": "FMCG / Foodstuffs", "value": "fmcg" },
+                        { "label": "Electronics / IT Equipment", "value": "electronics" },
+                        { "label": "Chemicals (Non-Hazardous)", "value": "chem_nonhaz" },
+                        { "label": "Chemicals (Hazardous)", "value": "chem_haz" },
+                        { "label": "Pharmaceuticals", "value": "pharma" },
+                        { "label": "Textiles / Garments", "value": "textiles" },
+                        { "label": "Auto Parts", "value": "auto_parts" },
+                        { "label": "Fragile Goods (Glass/Ceramics)", "value": "fragile" },
+                        { "label": "Others", "value": "others" }
+                    ]},
+                    { "key": "commodity_others", "label": "Specify Commodity", "type": "text", "visibleIf": { "field": "commodity_type", "value": "others" } },
+                    { "key": "policy_basis", "label": "Policy Type", "type": "select", "required": true, "options": [
+                        { "label": "STOP (Annual Turnover)", "value": "stop" },
+                        { "label": "Specific Voyage", "value": "specific" }
+                    ]},
+                    { "key": "estimated_turnover", "label": "Annual Turnover", "type": "number", "prefix": "₹", "required": true, "visibleIf": { "field": "policy_basis", "value": "stop" } },
+                    { "key": "limit_per_sending", "label": "Limit Per Sending (LPS)", "type": "number", "prefix": "₹", "helperText": "Max value on any single truck/vessel", "required": true },
+                    { "key": "packing_type", "label": "Packing Type", "type": "select", "required": true, "options": [
+                        { "label": "Standard Export Packing", "value": "export" },
+                        { "label": "Wooden Crates", "value": "crates" },
+                        { "label": "Corrugated Boxes", "value": "boxes" },
+                        { "label": "Loose / Unpacked", "value": "loose" }
+                    ]},
+                    { "key": "transport_mode", "label": "Primary Mode of Transport", "type": "checkbox", "options": [
+                        { "label": "Road", "value": "road" },
+                        { "label": "Rail", "value": "rail" },
+                        { "label": "Sea", "value": "sea" },
+                        { "label": "Air", "value": "air" }
+                    ]},
+                    { "key": "transit_route", "label": "Typical Transit Route", "type": "textarea", "helperText": "Specify origin, destination, and major transit points" },
+                    { "key": "storage_conditions", "label": "Storage Conditions", "type": "select", "options": [
+                        { "label": "Warehouse with Climate Control", "value": "climate" },
+                        { "label": "Standard Warehouse", "value": "standard" },
+                        { "label": "Open Yard", "value": "open" }
+                    ]},
+                    { "key": "duty_insurance", "label": "Include Custom Duty Insurance?", "type": "select", "visibleIf": { "field": "transit_type", "value": "import" }, "options": [{ "label": "No", "value": "no" }, { "label": "Yes", "value": "yes" }] },
+                    { "key": "marine_deductible", "label": "Preferred Deductible", "type": "select", "options": [
+                        { "label": "Standard (0.5% of claim)", "value": "standard" },
+                        { "label": "Higher (1% of claim)", "value": "higher" },
+                        { "label": "Lower (0.25% of claim)", "value": "lower" }
+                    ]}
+                ]
+            },
+
+            // --- CGL SECTION ---
+            {
+                "id": "cgl_details",
+                "title": "3. Liability Risk Profile",
+                "visibleIf": { "field": "product_type", "value": "cgl" },
+                "fields": [
+                    { "key": "limit_aoa", "label": "Any One Accident (AOA) Limit", "type": "number", "prefix": "₹", "required": true },
+                    { "key": "limit_aggregate", "label": "Aggregate Limit (Annual)", "type": "number", "prefix": "₹", "required": true },
+                    { "key": "turnover_total", "label": "Total Turnover", "type": "number", "prefix": "₹", "required": true },
+                    { "key": "employee_count", "label": "Total Number of Employees", "type": "number", "required": true },
+                    { "key": "business_activities", "label": "Business Activities Description", "type": "textarea", "required": true, "helperText": "Describe your primary business operations" },
+                    { "key": "contractual_liability", "label": "Contractual Liability Exposure", "type": "select", "options": [
+                        { "label": "Low (Standard Contracts)", "value": "low" },
+                        { "label": "Medium (Some Indemnity Clauses)", "value": "medium" },
+                        { "label": "High (Frequent Contractual Indemnities)", "value": "high" }
+                    ]},
+                    { "key": "product_liability", "label": "Product Liability Exposure", "type": "select", "options": [
+                        { "label": "No Product Sales", "value": "none" },
+                        { "label": "Low Risk Products", "value": "low" },
+                        { "label": "Medium Risk Products", "value": "medium" },
+                        { "label": "High Risk Products", "value": "high" }
+                    ]},
+                    { "key": "premises_liability", "label": "Premises Liability", "type": "select", "options": [
+                        { "label": "Low (Office Only)", "value": "low" },
+                        { "label": "Medium (Some Public Access)", "value": "medium" },
+                        { "label": "High (Regular Public Access)", "value": "high" }
+                    ]},
+                    { "key": "jurisdiction", "label": "Jurisdiction", "type": "select", "options": [
+                        { "label": "India Only", "value": "india" },
+                        { "label": "Worldwide ex USA/Canada", "value": "ww_ex" },
+                        { "label": "Worldwide inc USA/Canada", "value": "ww_inc" }
+                    ]},
+                    { "key": "retro_date_req", "label": "Retroactive Cover Required?", "type": "select", "helperText": "For continuous coverage from previous policies", "options": [{ "label": "No (Fresh)", "value": "no" }, { "label": "Yes", "value": "yes" }] },
+                    { "key": "retro_date", "label": "Retroactive Date", "type": "date", "visibleIf": { "field": "retro_date_req", "value": "yes" } }
+                ]
+            },
+
+            // --- GMC SECTION ---
+            {
+                "id": "gmc_details",
+                "title": "3. Employee Benefits (GMC)",
+                "visibleIf": { "field": "product_type", "value": "gmc" },
+                "fields": [
+                    { "key": "total_employees", "label": "Total Employees", "type": "number", "suffix": "Lives", "required": true },
+                    { "key": "employee_age_range", "label": "Employee Age Range", "type": "text", "helperText": "e.g., 22-60 years" },
+                    { "key": "gender_ratio", "label": "Gender Ratio (M:F)", "type": "text", "helperText": "e.g., 70:30" },
+                    { "key": "sum_insured_type", "label": "Sum Insured Type", "type": "select", "options": [
+                        { "label": "Flat (e.g., Everyone 3L)", "value": "flat" },
+                        { "label": "Graded (Based on Designation)", "value": "graded" }
+                    ]},
+                    { "key": "sum_insured_amount", "label": "Sum Insured Amount", "type": "number", "prefix": "₹", "required": true },
+                    { "key": "coverage_type", "label": "Coverage Type", "type": "select", "options": [
+                        { "label": "Employees Only", "value": "employee" },
+                        { "label": "Employees + Spouse", "value": "employee_spouse" },
+                        { "label": "Employees + Spouse + Children", "value": "family" },
+                        { "label": "Employees + Parents", "value": "employee_parents" },
+                        { "label": "Comprehensive (Employee + Family + Parents)", "value": "comprehensive" }
+                    ]},
+                    { "key": "maternity_cover", "label": "Maternity Benefit", "type": "select", "options": [
+                        { "label": "No Maternity", "value": "no" },
+                        { "label": "₹ 35k Normal / 50k C-Sec", "value": "low" },
+                        { "label": "₹ 50k Normal / 75k C-Sec", "value": "high" },
+                        { "label": "₹ 1 Lakh", "value": "v_high" },
+                        { "label": "As per Sum Insured", "value": "asis" }
+                    ]},
+                    { "key": "room_rent", "label": "Room Rent Limit", "type": "select", "options": [
+                        { "label": "1% of Sum Insured", "value": "1pct" },
+                        { "label": "Single Private Room (No Cap)", "value": "single_pvt" },
+                        { "label": "Double Sharing", "value": "double" }
+                    ]},
+                    { "key": "co_payment", "label": "Co-payment Requirement", "type": "select", "options": [
+                        { "label": "No Co-payment", "value": "no" },
+                        { "label": "10% Co-payment", "value": "10pct" },
+                        { "label": "20% Co-payment", "value": "20pct" }
+                    ]},
+                    { "key": "day_care", "label": "Day Care Procedures", "type": "select", "options": [
+                        { "label": "Covered", "value": "yes" },
+                        { "label": "Not Covered", "value": "no" }
+                    ]},
+                    { "key": "dental_cover", "label": "Dental Cover", "type": "select", "options": [
+                        { "label": "Accidental Only", "value": "accidental" },
+                        { "label": "Accidental + Basic", "value": "basic" },
+                        { "label": "Comprehensive", "value": "comprehensive" },
+                        { "label": "No Dental", "value": "no" }
+                    ]},
+                    { "key": "opd_cover", "label": "OPD Cover", "type": "select", "options": [
+                        { "label": "No OPD", "value": "no" },
+                        { "label": "Limited OPD (Consultation)", "value": "limited" },
+                        { "label": "Comprehensive OPD", "value": "comprehensive" }
+                    ]},
+                    { "key": "wellness_benefits", "label": "Wellness Benefits", "type": "checkbox", "options": [
+                        { "label": "Health Check-up", "value": "checkup" },
+                        { "label": "Vaccination", "value": "vaccination" },
+                        { "label": "Maternity Wellness", "value": "maternity" },
+                        { "label": "Fitness Program", "value": "fitness" }
+                    ]},
+                    { "key": "ped_waiver", "label": "Waive Pre-Existing Diseases (PED)?", "type": "select", "helperText": "Day 1 Cover for existing conditions (Expensive)", "options": [
+                        { "label": "Yes (Day 1 Cover)", "value": "yes" },
+                        { "label": "No (Standard 3-4 Year wait)", "value": "no" }
+                    ]},
+                    { "key": "network_preference", "label": "Network Hospital Preference", "type": "select", "options": [
+                        { "label": "Any Network Hospital", "value": "any" },
+                        { "label": "Top Tier Hospitals Only", "value": "top" }
+                    ]},
+                    { "key": "emp_data_file", "label": "Upload Census (Excel)", "type": "file", "required": true, "accept": ".xls,.xlsx,.csv" }
+                ]
+            },
+
+            // --- WORKMEN COMPENSATION SECTION ---
+            {
+                "id": "wc_details",
+                "title": "3. Workmen Compensation Details",
+                "visibleIf": { "field": "product_type", "value": "wc" },
+                "fields": [
+                    { "key": "total_workmen", "label": "Total Number of Workmen", "type": "number", "required": true },
+                    { "key": "workmen_breakdown", "label": "Workmen Breakdown by Risk Category", "type": "textarea", "required": true, "helperText": "Specify number of workers in each risk category (e.g., Office: 20, Factory: 50, High Risk: 10)" },
+                    { "key": "total_wages", "label": "Total Annual Wages", "type": "number", "prefix": "₹", "required": true },
+                    { "key": "hazardous_operations", "label": "Hazardous Operations", "type": "textarea", "helperText": "Describe any hazardous operations or processes" },
+                    { "key": "safety_measures", "label": "Safety Measures in Place", "type": "checkbox", "options": [
+                        { "label": "Safety Officer Appointed", "value": "safety_officer" },
+                        { "label": "Regular Safety Training", "value": "training" },
+                        { "label": "Personal Protective Equipment", "value": "ppe" },
+                        { "label": "First Aid Facilities", "value": "first_aid" },
+                        { "label": "Accident Reporting System", "value": "reporting" }
+                    ]},
+                    { "key": "previous_claims", "label": "Previous WC Claims (Last 3 Years)", "type": "select", "options": [
+                        { "label": "No Claims", "value": "no" },
+                        { "label": "Minor Claims (< ₹50,000)", "value": "minor" },
+                        { "label": "Moderate Claims (₹50,000 - ₹2 Lakh)", "value": "moderate" },
+                        { "label": "Major Claims (> ₹2 Lakh)", "value": "major" }
+                    ]},
+                    { "key": "claims_details", "label": "Claims Details", "type": "textarea", "visibleIf": { "field": "previous_claims", "value": ["minor", "moderate", "major"] } }
+                ]
+            },
+
+            // --- PROFESSIONAL INDEMNITY SECTION ---
+            {
+                "id": "pi_details",
+                "title": "3. Professional Indemnity Details",
+                "visibleIf": { "field": "product_type", "value": "pi" },
+                "fields": [
+                    { "key": "profession_type", "label": "Profession Type", "type": "select", "required": true, "options": [
+                        { "label": "Architects / Engineers", "value": "architects" },
+                        { "label": "Doctors / Medical Practitioners", "value": "doctors" },
+                        { "label": "Lawyers / Legal Firms", "value": "lawyers" },
+                        { "label": "Chartered Accountants", "value": "ca" },
+                        { "label": "Consultants (Management/IT)", "value": "consultants" },
+                        { "label": "Real Estate Agents", "value": "real_estate" },
+                        { "label": "Insurance Brokers", "value": "brokers" },
+                        { "label": "Others", "value": "others" }
+                    ]},
+                    { "key": "profession_others", "label": "Specify Profession", "type": "text", "visibleIf": { "field": "profession_type", "value": "others" } },
+                    { "key": "limit_indemnity", "label": "Limit of Indemnity", "type": "number", "prefix": "₹", "required": true },
+                    { "key": "annual_turnover", "label": "Annual Turnover/Fees", "type": "number", "prefix": "₹", "required": true },
+                    { "key": "employee_count_pi", "label": "Number of Professionals", "type": "number", "required": true },
+                    { "key": "services_description", "label": "Services Description", "type": "textarea", "required": true, "helperText": "Describe the professional services you provide" },
+                    { "key": "contract_value", "label": "Largest Contract Value", "type": "number", "prefix": "₹", "helperText": "Value of your largest single project/contract" },
+                    { "key": "previous_claims_pi", "label": "Previous PI Claims", "type": "select", "options": [
+                        { "label": "No Claims", "value": "no" },
+                        { "label": "Claims < ₹5 Lakh", "value": "minor" },
+                        { "label": "Claims ₹5 Lakh - ₹25 Lakh", "value": "moderate" },
+                        { "label": "Claims > ₹25 Lakh", "value": "major" }
+                    ]},
+                    { "key": "claims_details_pi", "label": "Claims Details", "type": "textarea", "visibleIf": { "field": "previous_claims_pi", "value": ["minor", "moderate", "major"] } },
+                    { "key": "retroactive_cover_pi", "label": "Retroactive Cover Required?", "type": "select", "options": [{ "label": "No", "value": "no" }, { "label": "Yes", "value": "yes" }] }
+                ]
+            },
+
+            // --- CLAIM HISTORY ---
+            {
+                "id": "claims_history",
+                "title": "4. Claims History",
+                "description": "Declaration of past 3 years is mandatory for valid quotes.",
+                "fields": [
+                    { "key": "past_claims", "label": "Any Claims in last 3 years?", "type": "select", "required": true, "options": [
+                        { "label": "No - Claim Free", "value": "no" },
+                        { "label": "Yes", "value": "yes" }
+                    ]},
+                    { "key": "claim_details", "label": "Total Claim Amount (Approx)", "type": "number", "prefix": "₹", "visibleIf": { "field": "past_claims", "value": "yes" } },
+                    { "key": "claim_desc", "label": "Brief Description of Loss", "type": "textarea", "visibleIf": { "field": "past_claims", "value": "yes" } },
+                    { "key": "claim_year", "label": "Year of Claim", "type": "select", "visibleIf": { "field": "past_claims", "value": "yes" }, "options": [
+                        { "label": "2024", "value": "2024" },
+                        { "label": "2023", "value": "2023" },
+                        { "label": "2022", "value": "2022" },
+                        { "label": "2021", "value": "2021" }
+                    ]}
+                ]
+            }
+        ]
+    };
+
+
+    // ---------------------------------------------------------
+    // RENDER ENGINE
+    // ---------------------------------------------------------
+
+    document.addEventListener('DOMContentLoaded', () => {
+        renderForm();
+        setupListeners();
+    });
+
+    function renderForm() {
+        const container = document.getElementById('dynamicFormContainer');
+        container.innerHTML = ''; // Clear existing
+
+        insuranceConfig.sections.forEach(section => {
+            // Section Card
+            const card = document.createElement('div');
+            card.className = 'section-card';
+            
+            // Store visibility logic in data attributes
+            if (section.visibleIf) {
+                card.classList.add('hidden-element');
+                card.dataset.depField = section.visibleIf.field;
+                card.dataset.depValue = JSON.stringify(section.visibleIf.value);
+            }
+
+            // Header
+            let html = `
+                <div class="section-header">
+                    <h5 class="section-title">${section.title}</h5>
+                    ${section.description ? `<div class="section-desc">${section.description}</div>` : ''}
+                </div>
+                <div class="section-body">
+                    <div class="row g-4">
+            `;
+
+            // Fields
+            section.fields.forEach(field => {
+                const isReq = field.required ? '<span class="required-star">*</span>' : '';
+                const helper = field.helperText ? `<div class="form-text">${field.helperText}</div>` : '';
+                
+                // Field Visibility Logic
+                let wrapperClass = field.visibleIf ? 'hidden-element' : '';
+                let wrapperData = '';
+                if(field.visibleIf) {
+                    wrapperData = `data-dep-field="${field.visibleIf.field}" data-dep-value='${JSON.stringify(field.visibleIf.value)}'`;
+                }
+
+                // Input Generation
+                let inputHtml = '';
+                
+                // 1. SELECT
+                if (field.type === 'select') {
+                    const opts = field.options.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+                    inputHtml = `<select class="form-select" name="${field.key}" id="${field.key}" ${field.required ? 'required' : ''}><option value="">-- Select --</option>${opts}</select>`;
+                
+                // 2. TEXTAREA
+                } else if (field.type === 'textarea') {
+                    inputHtml = `<textarea class="form-control" name="${field.key}" id="${field.key}" rows="3" ${field.required ? 'required' : ''}></textarea>`;
+                
+                // 3. CHECKBOX (Multi-select group)
+                } else if (field.type === 'checkbox') {
+                    inputHtml = `<div class="checkbox-group">`;
+                    field.options.forEach(opt => {
+                        inputHtml += `
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="${field.key}" value="${opt.value}" id="${field.key}_${opt.value}">
+                                <label class="form-check-label" for="${field.key}_${opt.value}">${opt.label}</label>
+                            </div>`;
+                    });
+                    inputHtml += `</div>`;
+                
+                // 4. STANDARD INPUTS (Text, Number, Date, File)
+                } else {
+                    let type = field.type;
+                    let style = field.uppercase ? 'style="text-transform:uppercase"' : '';
+                    let onInput = field.uppercase ? 'oninput="this.value = this.value.toUpperCase()"' : '';
+                    let minMax = '';
+                    if(field.min) minMax += ` min="${field.min}"`;
+                    if(field.max) minMax += ` max="${field.max}"`;
+
+                    let coreInput = `<input type="${type}" class="form-control" name="${field.key}" id="${field.key}" 
+                                     placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''} 
+                                     ${style} ${onInput} ${minMax} accept="${field.accept || ''}">`;
+                    
+                    // Input Groups (Prefix/Suffix)
+                    if (field.prefix || field.suffix) {
+                        inputHtml = `<div class="input-group">`;
+                        if(field.prefix) inputHtml += `<span class="input-group-text">${field.prefix}</span>`;
+                        inputHtml += coreInput;
+                        if(field.suffix) inputHtml += `<span class="input-group-text">${field.suffix}</span>`;
+                        inputHtml += `</div>`;
+                    } else {
+                        inputHtml = coreInput;
+                    }
+                }
+
+                // Assemble Field Wrapper
+                html += `
+                    <div class="col-md-6 field-wrapper ${wrapperClass}" ${wrapperData}>
+                        <label class="form-label" for="${field.key}">${field.label} ${isReq}</label>
+                        ${inputHtml}
+                        ${helper}
+                        <div class="invalid-feedback">Please check this field.</div>
+                    </div>
+                `;
+            });
+
+            html += `</div></div>`; // Close row, body
+            card.innerHTML = html;
+            container.appendChild(card);
+        });
+    }
+
+    // ---------------------------------------------------------
+    // LOGIC ENGINE
+    // ---------------------------------------------------------
+
+    function setupListeners() {
+        const form = document.getElementById('rfqForm');
+
+        // VISIBILITY TOGGLE (Event Delegation)
+        form.addEventListener('change', (e) => {
+            checkVisibility();
+        });
+
+        // VALIDATION (Blur Event)
+        form.addEventListener('focusout', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+                validateField(e.target);
+            }
+        });
+    }
+
+    function checkVisibility() {
+        // 1. Check Sections
+        document.querySelectorAll('.section-card[data-dep-field]').forEach(el => toggleElement(el));
+        
+        // 2. Check Fields
+        document.querySelectorAll('.field-wrapper[data-dep-field]').forEach(el => toggleElement(el));
+    }
+
+    function toggleElement(element) {
+        const depFieldName = element.dataset.depField;
+        // Parse the value because it might be an array stored as string '["a", "b"]'
+        const depRequiredValue = JSON.parse(element.dataset.depValue); 
+        
+        const controller = document.getElementById(depFieldName);
+
+        if (controller) {
+            const inputs = element.querySelectorAll('input, select, textarea');
+            const currentVal = controller.value;
+            
+            let isVisible = false;
+
+            // Handle Array of accepted values OR single value
+            if (Array.isArray(depRequiredValue)) {
+                isVisible = depRequiredValue.includes(currentVal);
+            } else {
+                isVisible = (currentVal === depRequiredValue);
+            }
+
+            if (isVisible) {
+                element.classList.remove('hidden-element');
+                // Enable inputs so they validate and submit
+                inputs.forEach(i => i.disabled = false);
+            } else {
+                element.classList.add('hidden-element');
+                // Disable inputs to prevent validation errors on hidden fields
+                inputs.forEach(i => i.disabled = true);
+            }
+        }
+    }
+
+    function validateField(input) {
+        // Find field config in JSON
+        let fieldConfig = null;
+        for (const section of insuranceConfig.sections) {
+            const found = section.fields.find(f => f.key === input.name);
+            if (found) { fieldConfig = found; break; }
+        }
+
+        if (!fieldConfig) return;
+
+        // Custom Regex Validation
+        if (fieldConfig.validation && input.value) {
+            const re = new RegExp(fieldConfig.validation.regex);
+            if (!re.test(input.value)) {
+                input.classList.add('is-invalid');
+                input.classList.remove('is-valid');
+                // Update error message dynamically if possible, else standard
+                const feedback = input.closest('.field-wrapper').querySelector('.invalid-feedback');
+                if(feedback) feedback.innerText = fieldConfig.validation.message;
+            } else {
+                input.classList.remove('is-invalid');
+                input.classList.add('is-valid');
+            }
+        } else {
+            // Standard HTML5 validation (required, min, max, type)
+            if (!input.checkValidity()) {
+                input.classList.add('is-invalid');
+            } else {
+                input.classList.remove('is-invalid');
+                if(input.value) input.classList.add('is-valid');
+            }
+        }
+    }
+
+    // ---------------------------------------------------------
+    // SUBMISSION HANDLER
+    // ---------------------------------------------------------
+
+    document.getElementById('rfqForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const form = e.target;
+        
+        if (!form.checkValidity()) {
+            e.stopPropagation();
+            form.classList.add('was-validated');
+            // Focus first error
+            const err = form.querySelector(':invalid:not(:disabled)');
+            if(err) {
+                err.focus();
+                // If it's in a collapsed section, we might need logic here, but disabled fields are skipped
+            }
+            return;
+        }
+
+        // Show Loading
+        document.getElementById('loadingOverlay').style.display = 'flex';
+
+        // Collect Data
+        const formData = new FormData(form);
+        const payload = {};
+        
+        // Handle Multi-checkboxes correctly
+        formData.forEach((value, key) => {
+            if (payload[key]) {
+                if (!Array.isArray(payload[key])) {
+                    payload[key] = [payload[key]];
+                }
+                payload[key].push(value);
+            } else {
+                payload[key] = value;
+            }
+        });
+
+        // Simulate API
+        setTimeout(() => {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            console.log("-----------------------------------------");
+            console.log("FINAL PAYLOAD:", payload);
+            console.log("-----------------------------------------");
+            alert("Application Submitted! Check Console for JSON.");
+        }, 1500);
+    });
+
+</script>
+
+</body>
+</html>
